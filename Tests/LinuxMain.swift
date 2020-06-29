@@ -1,7 +1,7 @@
 import XCTest
 
-import SecurityTests
+import AuthenticationTests
 
 var tests = [XCTestCaseEntry]()
-tests += SecurityTests.allTests()
+tests += HOTPTests.allTests()
 XCTMain(tests)
