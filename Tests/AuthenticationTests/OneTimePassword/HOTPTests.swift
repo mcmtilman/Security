@@ -15,7 +15,7 @@ import Authentication
  */
 final class HOTPTests: XCTestCase {
 
-    // MARK: Testing RFC 4226 reference passwords with SHA1, 6 digits and 0 window
+    // MARK: Testing RFC 4226 reference passwords
     
     // Test SHA1 for counters 0 through 9 truncating / padding to 6 digits.
     func testRFC4226() {
