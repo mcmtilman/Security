@@ -56,12 +56,11 @@ public struct HOTP {
 
     // MARK: Generating
     
-    /// Answers the password for given counter using specified algorithm and secret.
+    /// Answers the password for given counter using the specified algorithm and secret.
     public func generatePassword(counter: Int64) -> String {
-        let data = withUnsafeBytes(of: counter.bigEndian) { Array($0) }
-        let password = hash(for: data).bigEndian & 0x7FFF_FFFF
+        let password = hash(for: counter) % UInt32(Self.powersOfTen[digits])
 
-        return String(format: "%0*u", digits, password % UInt32(Self.powersOfTen[digits]))
+        return String(format: "%0*u", digits, password)
     }
 
     // MARK: Validating
@@ -73,25 +72,28 @@ public struct HOTP {
     
     // MARK: Private generating
     
-    // Computes the hash for given algorithm and extracts the relevant part.
-    private func hash(for data: [UInt8]) -> UInt32 {
-        func hash<H>(function: H.Type) -> UInt32 where H: HashFunction {
+    // Computes the hash for given algorithm and secret, and extracts the relevant part.
+    // Reference: https://tools.ietf.org/html/rfc4226.
+    private func hash(for counter: Int64) -> UInt32 {        
+        func hash<H>(using: H.Type) -> UInt32 where H: HashFunction {
+            let data = withUnsafeBytes(of: counter.bigEndian) { Array($0) }
             let code = HMAC<H>.authenticationCode(for: data, using: key)
+            let value: UInt32 = code.withUnsafeBytes { codePtr in
+                let offset = codePtr[code.byteCount - 1] & 0x0f
+                let ptr = codePtr.baseAddress! + Int(offset)
 
-            return code.withUnsafeBytes { ptr -> UInt32 in
-                let offset = ptr[code.byteCount - 1] & 0x0f
-                let hashPtr = ptr.baseAddress! + Int(offset)
-
-                return hashPtr.bindMemory(to: UInt32.self, capacity: 1).pointee
+                return ptr.bindMemory(to: UInt32.self, capacity: 1).pointee
             }
+            
+            return value.bigEndian & 0x7FFF_FFFF
         }
         
         switch algorithm {
-        case .md5: return hash(function: Insecure.MD5.self)
-        case .sha1: return hash(function: Insecure.SHA1.self)
-        case .sha256: return hash(function: SHA256.self)
-        case .sha384: return hash(function: SHA384.self)
-        case .sha512: return hash(function: SHA512.self)
+        case .md5: return hash(using: Insecure.MD5.self)
+        case .sha1: return hash(using: Insecure.SHA1.self)
+        case .sha256: return hash(using: SHA256.self)
+        case .sha384: return hash(using: SHA384.self)
+        case .sha512: return hash(using: SHA512.self)
         }
     }
     
