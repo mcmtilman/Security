@@ -20,7 +20,7 @@ public struct HOTP {
      */
     public enum Algorithm {
         
-        case md5, sha1, sha256, sha384, SHA512
+        case md5, sha1, sha256, sha384, sha512
         
         /// Answers if the algorithm is deemed secure.
         public var isSecure: Bool {
@@ -75,25 +75,23 @@ public struct HOTP {
     
     // Computes the hash for given algorithm and extracts the relevant part.
     private func hash(for data: [UInt8]) -> UInt32 {
-        struct Hasher<H> where H: HashFunction {
-            static func hash(_ data: [UInt8], _ key: SymmetricKey) -> UInt32 {
-                let code = HMAC<H>.authenticationCode(for: data, using: key)
+        func hash<H>(function: H.Type) -> UInt32 where H: HashFunction {
+            let code = HMAC<H>.authenticationCode(for: data, using: key)
 
-                return code.withUnsafeBytes { ptr -> UInt32 in
-                    let offset = ptr[code.byteCount - 1] & 0x0f
-                    let hashPtr = ptr.baseAddress! + Int(offset)
+            return code.withUnsafeBytes { ptr -> UInt32 in
+                let offset = ptr[code.byteCount - 1] & 0x0f
+                let hashPtr = ptr.baseAddress! + Int(offset)
 
-                    return hashPtr.bindMemory(to: UInt32.self, capacity: 1).pointee
-                }
+                return hashPtr.bindMemory(to: UInt32.self, capacity: 1).pointee
             }
         }
         
         switch algorithm {
-        case .md5: return Hasher<Insecure.MD5>.hash(data, key)
-        case .sha1: return Hasher<Insecure.SHA1>.hash(data, key)
-        case .sha256: return Hasher<SHA256>.hash(data, key)
-        case .sha384: return Hasher<SHA384>.hash(data, key)
-        case .SHA512: return Hasher<SHA512>.hash(data, key)
+        case .md5: return hash(function: Insecure.MD5.self)
+        case .sha1: return hash(function: Insecure.SHA1.self)
+        case .sha256: return hash(function: SHA256.self)
+        case .sha384: return hash(function: SHA384.self)
+        case .sha512: return hash(function: SHA512.self)
         }
     }
     
