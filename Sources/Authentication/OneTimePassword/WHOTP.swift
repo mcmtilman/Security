@@ -32,19 +32,19 @@ public struct WHOTP {
     // MARK: Generating
     
     /// Answers the password for given counter using specified algorithm and secret.
-    public func generatePassword(counter: Int64) -> String {
-        hotp.generatePassword(counter: counter)
+    public func generatePassword(for counter: Int64) -> String {
+        hotp.generatePassword(for: counter)
     }
     
     // MARK: Validating
     
     /// Answers if the password is valid.
     /// Try matching the counter. If not possible, try previous and next counters in the window.
-    public func isValidPassword(password: String, counter: Int64) -> Bool {
-        if hotp.isValidPassword(password: password, counter: counter) { return true }
+    public func isValidPassword(_ password: String, for counter: Int64) -> Bool {
+        if hotp.isValidPassword(password, for: counter) { return true }
         
         for c in counter - window ... counter + window where c != counter {
-            if hotp.isValidPassword(password: password, counter: c) { return true }
+            if hotp.isValidPassword(password, for: c) { return true }
         }
         
         return false

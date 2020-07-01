@@ -2,4 +2,4 @@
 
 ## One time password
 
-### HOTP and TOTP
+### HOTP and TOTP and windowed variants

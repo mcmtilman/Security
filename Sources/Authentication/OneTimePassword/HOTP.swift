@@ -18,21 +18,24 @@ public struct HOTP {
     /**
      Supported hashing algorithms.
      */
-    public enum Algorithm {
+    public enum Algorithm: String {
         
-        case md5, sha1, sha256, sha384, sha512
+        case sha1 = "SHA1"
+        case sha256 = "SHA256"
+        case sha384 = "SHA384"
+        case sha512 = "SHA512"
         
         /// Answers if the algorithm is deemed secure.
         public var isSecure: Bool {
-            self != .md5 && self != .sha1
+            self != .sha1
         }
         
     }
     
     // MARK: Private static stored properties
     
-    // Pre-computed powers of ten for 0 through 9.
-    private static let powersOfTen = [ 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 ]
+    // Pre-computed powers of ten for 1 through 9.
+    private static let powersOfTen = [ 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 ]
 
     // MARK: Private stored properties
     
@@ -57,8 +60,8 @@ public struct HOTP {
     // MARK: Generating
     
     /// Answers the password for given counter using the specified algorithm and secret.
-    public func generatePassword(counter: Int64) -> String {
-        let password = hash(for: counter) % UInt32(Self.powersOfTen[digits])
+    public func generatePassword(for counter: Int64) -> String {
+        let password = hash(for: counter) % UInt32(Self.powersOfTen[digits - 1])
 
         return String(format: "%0*u", digits, password)
     }
@@ -66,8 +69,8 @@ public struct HOTP {
     // MARK: Validating
     
     /// Answers if the password is valid for given counter.
-    public func isValidPassword(password: String, counter: Int64) -> Bool {
-        generatePassword(counter: counter) == password
+    public func isValidPassword(_ password: String, for counter: Int64) -> Bool {
+        generatePassword(for: counter) == password
     }
     
     // MARK: Private generating
@@ -80,16 +83,15 @@ public struct HOTP {
             let code = HMAC<H>.authenticationCode(for: data, using: key)
             let value: UInt32 = code.withUnsafeBytes { codePtr in
                 let offset = codePtr[code.byteCount - 1] & 0x0f
-                let ptr = codePtr.baseAddress! + Int(offset)
-
-                return ptr.bindMemory(to: UInt32.self, capacity: 1).pointee
+                let valuePtr = codePtr.baseAddress! + Int(offset)
+                
+                return valuePtr.bindMemory(to: UInt32.self, capacity: 1).pointee
             }
             
             return value.bigEndian & 0x7FFF_FFFF
         }
         
         switch algorithm {
-        case .md5: return hash(using: Insecure.MD5.self)
         case .sha1: return hash(using: Insecure.SHA1.self)
         case .sha256: return hash(using: SHA256.self)
         case .sha384: return hash(using: SHA384.self)
