@@ -81,14 +81,15 @@ public struct HOTP {
         func hash<H>(using: H.Type) -> UInt32 where H: HashFunction {
             let data = withUnsafeBytes(of: counter.bigEndian) { Array($0) }
             let code = HMAC<H>.authenticationCode(for: data, using: key)
-            let value: UInt32 = code.withUnsafeBytes { codePtr in
-                let offset = codePtr[code.byteCount - 1] & 0x0f
-                let valuePtr = codePtr.baseAddress! + Int(offset)
+
+            return code.withUnsafeBytes { bytes in
+                let offset = Int(bytes[bytes.count - 1] & 0x0f)
                 
-                return valuePtr.bindMemory(to: UInt32.self, capacity: 1).pointee
+                return ((UInt32(bytes[offset]) & 0x7f) << 24) |
+                        (UInt32(bytes[offset + 1]) << 16) |
+                        (UInt32(bytes[offset + 2]) << 8) |
+                        (UInt32(bytes[offset + 3]))
             }
-            
-            return value.bigEndian & 0x7FFF_FFFF
         }
         
         switch algorithm {
