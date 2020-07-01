@@ -18,17 +18,9 @@ public struct HOTP {
     /**
      Supported hashing algorithms.
      */
-    public enum Algorithm: String {
+    public enum Algorithm {
         
-        case sha1 = "SHA1"
-        case sha256 = "SHA256"
-        case sha384 = "SHA384"
-        case sha512 = "SHA512"
-        
-        /// Answers if the algorithm is deemed secure.
-        public var isSecure: Bool {
-            self != .sha1
-        }
+        case sha1, sha256, sha384, sha512
         
     }
     
@@ -37,20 +29,26 @@ public struct HOTP {
     // Pre-computed powers of ten for 1 through 9.
     private static let powersOfTen = [ 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 ]
 
+    // MARK: Stored properties
+    
+    /// The hashing algorithm.
+    /// Default is SHA256.
+    let algorithm: Algorithm
+
+    /// The number of truncation digits.
+    /// Default is 6.
+    let digits: Int
+
     // MARK: Private stored properties
     
-    private let algorithm: Algorithm
-
-    private let digits: Int
-
     private let key: SymmetricKey
 
     // MARK: Initializing
     
     /// Initializes the algorithm.
     /// Fails if number of digits is out of range.
-    public init(secret: Data, algorithm: Algorithm = .sha256, digits: Int = 6) {
-        precondition((1 ... Self.powersOfTen.count).contains(digits))
+    public init?(secret: Data, algorithm: Algorithm = .sha256, digits: Int = 6) {
+        guard (1 ... Self.powersOfTen.count).contains(digits) else { return nil }
 
         self.algorithm = algorithm
         self.digits = digits

@@ -22,8 +22,8 @@ public struct WHOTP {
     
     /// Initializes the algorithm.
     /// Fails if window is out of range.
-    public init(hotp: HOTP, window: Int = 1) {
-        precondition((0 ... 5).contains(window))
+    public init?(hotp: HOTP, window: Int = 1) {
+        guard (0 ... 5).contains(window) else { return nil }
 
         self.hotp = hotp
         self.window = Int64(window)
@@ -39,7 +39,8 @@ public struct WHOTP {
     // MARK: Validating
     
     /// Answers if the password is valid.
-    /// Try matching the counter. If not possible, try previous and next counters in the window.
+    /// Try matching the counter. If not possible, try previous and next counters in the window
+    /// in the range counter - window ... counter + window.
     public func isValidPassword(_ password: String, for counter: Int64) -> Bool {
         if hotp.isValidPassword(password, for: counter) { return true }
         
