@@ -79,6 +79,34 @@ class HOTPTests: XCTestCase {
         }
     }
     
+    // MARK: Testing validating RFC 4226 reference passwords
+    
+    // Test validating wrong passwords for the RFC2446 reference counter / passwords.
+    func testInvalidPasswords() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        guard let hotp = HOTP(secret: secret, algorithm: .sha1) else { return XCTFail("nil HOTP") }
+        
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
+
+        for i in 0 ... 9 {
+            for j in 0 ... 9 where j != i {
+                XCTAssertFalse(hotp.isValidPassword(expected[i], for: Int64(j)))
+            }
+        }
+    }
+    
+    // Test validating the RFC2446 reference passwords.
+    func testValidPasswords() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        guard let hotp = HOTP(secret: secret, algorithm: .sha1) else { return XCTFail("nil HOTP") }
+        
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
+
+        for i in 0 ... 9 {
+            XCTAssertTrue(hotp.isValidPassword(expected[i], for: Int64(i)))
+        }
+    }
+    
 }
 
 
@@ -93,7 +121,9 @@ extension HOTPTests {
         ("testInvalidDigits", testInvalidDigits),
         ("testValidDigits", testValidDigits),
         ("testGenerateRFC4226Passwords", testGenerateRFC4226Passwords),
-        ("testGenerateTestDataPasswords", testGenerateTestDataPasswords)
+        ("testGenerateTestDataPasswords", testGenerateTestDataPasswords),
+        ("testInvalidPasswords", testInvalidPasswords),
+        ("testValidPasswords", testValidPasswords),
     ]
     
 }

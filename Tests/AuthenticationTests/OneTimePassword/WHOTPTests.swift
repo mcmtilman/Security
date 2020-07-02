@@ -83,6 +83,37 @@ class WHOTPTests: XCTestCase {
         }
     }
     
+    // MARK: Testing validating RFC 4226 reference passwords
+    
+    // Test validating the RFC2446 reference passwords for counters outside a window of 2 of the actual counter.
+    func testInvalidPasswords() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        guard let hotp = HOTP(secret: secret, algorithm: .sha1) else { return XCTFail("nil HOTP") }
+        guard let whotp = WHOTP(hotp: hotp, window: 2) else { return XCTFail("nil WHOTP") }
+
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
+
+        for i in 0 ... 9 {
+            XCTAssertFalse(whotp.isValidPassword(expected[i], for: Int64(i - 3)))
+            XCTAssertFalse(whotp.isValidPassword(expected[i], for: Int64(i + 3)))
+        }
+    }
+    
+    // Test validating the RFC2446 reference passwords for counters inside a window of 2 of the actual counter.
+    func testValidPasswords() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        guard let hotp = HOTP(secret: secret, algorithm: .sha1) else { return XCTFail("nil HOTP") }
+        guard let whotp = WHOTP(hotp: hotp, window: 2) else { return XCTFail("nil WHOTP") }
+
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
+
+        for i in 0 ... 9 {
+            for j in -2 ... 2 {
+                XCTAssertTrue(whotp.isValidPassword(expected[i], for: Int64(i + j)))
+            }
+        }
+    }
+    
 }
 
 
@@ -97,7 +128,9 @@ extension WHOTPTests {
         ("testInvalidWindow", testInvalidWindow),
         ("testValidWindow", testValidWindow),
         ("testGenerateRFC4226Passwords", testGenerateRFC4226Passwords),
-        ("testGenerateTestDataPasswords", testGenerateTestDataPasswords)
+        ("testGenerateTestDataPasswords", testGenerateTestDataPasswords),
+        ("testInvalidPasswords", testInvalidPasswords),
+        ("testValidPasswords", testValidPasswords),
     ]
     
 }
