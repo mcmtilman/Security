@@ -7,9 +7,8 @@
 //
 
 /**
-Basic HOTP algorithm extended with window support.
-Reference: https://tools.ietf.org/html/rfc4226.
-*/
+ Basic HOTP algorithm extended with window support.
+ */
 public struct WHOTP {
     
     // MARK: Stored properties

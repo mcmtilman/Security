@@ -10,9 +10,8 @@ import CryptoKit
 import Foundation
 
 /**
-Basic HOTP algorithm (RFC 4226)
-Reference: https://tools.ietf.org/html/rfc4226.
-*/
+ Basic HOTP algorithm ([RFC 4226](https://tools.ietf.org/html/rfc4226))
+ */
 public struct HOTP {
     
     /**
