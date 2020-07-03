@@ -76,7 +76,7 @@ public struct HOTP {
     // Computes the hash for given algorithm and secret, and extracts the relevant part.
     // Reference: https://tools.ietf.org/html/rfc4226.
     private func hash(for counter: Int64) -> UInt32 {        
-        func hash<H>(using: H.Type) -> UInt32 where H: HashFunction {
+        func hash<H>(with: H.Type) -> UInt32 where H: HashFunction {
             let data = withUnsafeBytes(of: counter.bigEndian) { Array($0) }
             let code = HMAC<H>.authenticationCode(for: data, using: key)
 
@@ -91,10 +91,10 @@ public struct HOTP {
         }
         
         switch algorithm {
-        case .sha1: return hash(using: Insecure.SHA1.self)
-        case .sha256: return hash(using: SHA256.self)
-        case .sha384: return hash(using: SHA384.self)
-        case .sha512: return hash(using: SHA512.self)
+        case .sha1: return hash(with: Insecure.SHA1.self)
+        case .sha256: return hash(with: SHA256.self)
+        case .sha384: return hash(with: SHA384.self)
+        case .sha512: return hash(with: SHA512.self)
         }
     }
     

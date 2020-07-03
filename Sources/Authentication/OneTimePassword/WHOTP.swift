@@ -14,6 +14,8 @@ public struct WHOTP {
     
     // MARK: Stored properties
     
+    /// Defines the range of counters that may be used to validate a password for a given counter.
+    /// The range is: counter - window ... counter + window.
     let window: Int64
 
     // MARK: Private stored properties
