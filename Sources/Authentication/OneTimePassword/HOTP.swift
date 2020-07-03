@@ -31,7 +31,7 @@ public struct HOTP {
     // MARK: Stored properties
     
     /// The hashing algorithm.
-    /// Default is SHA256.
+    /// Default is SHA1.
     let algorithm: Algorithm
 
     /// The number of truncation digits.
@@ -46,7 +46,7 @@ public struct HOTP {
     
     /// Initializes the algorithm.
     /// Fails if number of digits is out of range.
-    public init?(secret: Data, algorithm: Algorithm = .sha256, digits: Int = 6) {
+    public init?(secret: Data, algorithm: Algorithm = .sha1, digits: Int = 6) {
         guard (1 ... Self.powersOfTen.count).contains(digits) else { return nil }
 
         self.algorithm = algorithm

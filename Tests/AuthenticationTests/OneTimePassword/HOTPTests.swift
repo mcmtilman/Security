@@ -22,7 +22,7 @@ class HOTPTests: XCTestCase {
         guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
         guard let hotp = HOTP(secret: secret) else { return XCTFail("nil HOTP") }
         
-        XCTAssertEqual(hotp.algorithm, .sha256)
+        XCTAssertEqual(hotp.algorithm, .sha1)
         XCTAssertEqual(hotp.digits, 6)
     }
     
