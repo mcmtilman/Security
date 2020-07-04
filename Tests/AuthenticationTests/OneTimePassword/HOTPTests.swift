@@ -124,7 +124,7 @@ class HOTPTests: XCTestCase {
     // Test generating passwords for different counter / secret / hash algorithm / digits combinations.
     // Compare results with test data produced by the RFC4226 Java reference implementation.
     // First test using explicit truncation offsets matching the recorded dynamic offsets in the test data.
-    // Then test using shifted explicit offsets, with enough digits to return different results.
+    // Then test using shifted explicit offsets, with enough digits to generate different results.
     //
     func testTruncationOffsets() {
         let algorithms = ["SHA1": HOTP.Algorithm.sha1, "SHA256": .sha256, "SHA384": .sha384, "SHA512": .sha512]

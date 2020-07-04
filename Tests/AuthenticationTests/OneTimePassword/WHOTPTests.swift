@@ -83,6 +83,34 @@ class WHOTPTests: XCTestCase {
         }
     }
     
+    // MARK: Testing truncation offsets
+    
+    // Test generating passwords for different counter / secret / hash algorithm / digits combinations.
+    // Compare results with test data produced by the RFC4226 Java reference implementation.
+    // First test using explicit truncation offsets matching the recorded dynamic offsets in the test data.
+    // Then test using shifted explicit offsets, with enough digits to generate different results.
+    //
+    func testTruncationOffsets() {
+        let algorithms = ["SHA1": HOTP.Algorithm.sha1, "SHA256": .sha256, "SHA384": .sha384, "SHA512": .sha512]
+        
+        for (counter, secret, algorithm, digits, otp, offset) in HOTPTestResources.referenceData {
+            guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
+            guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
+            guard let hotp = HOTP(secret: secret, algorithm: algorithm, digits: digits, offset: offset) else { return XCTFail("nil HOTP") }
+            guard let whotp = WHOTP(hotp: hotp) else { return XCTFail("nil WHOTP") }
+
+            XCTAssertEqual(whotp.generatePassword(for: Int64(counter)), otp)
+        }
+        for (counter, secret, algorithm, digits, otp, offset) in HOTPTestResources.referenceData where digits > 2 {
+            guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
+            guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
+            guard let hotp = HOTP(secret: secret, algorithm: algorithm, digits: digits, offset: (offset + 1) % (algorithm.byteCount - 4)) else { return XCTFail("nil HOTP") }
+            guard let whotp = WHOTP(hotp: hotp) else { return XCTFail("nil WHOTP") }
+
+            XCTAssertNotEqual(whotp.generatePassword(for: Int64(counter)), otp)
+        }
+    }
+    
     // MARK: Testing validating RFC 4226 reference passwords
     
     // Test validating the RFC2446 reference passwords for counters outside a window of 2 of the actual counter.
@@ -129,6 +157,7 @@ extension WHOTPTests {
         ("testValidWindow", testValidWindow),
         ("testGenerateRFC4226Passwords", testGenerateRFC4226Passwords),
         ("testGenerateTestDataPasswords", testGenerateTestDataPasswords),
+        ("testTruncationOffsets", testTruncationOffsets),
         ("testInvalidPasswords", testInvalidPasswords),
         ("testValidPasswords", testValidPasswords),
     ]
