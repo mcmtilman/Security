@@ -73,7 +73,7 @@ class WHOTPTests: XCTestCase {
     func testGenerateTestDataPasswords() {
         let algorithms = ["SHA1": HOTP.Algorithm.sha1, "SHA256": .sha256, "SHA384": .sha384, "SHA512": .sha512]
         
-        for (counter, secret, algorithm, digits, otp) in HOTPTestResources.referenceData {
+        for (counter, secret, algorithm, digits, otp, _) in HOTPTestResources.referenceData {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
             guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
             guard let hotp = HOTP(secret: secret, algorithm: algorithm, digits: digits) else { return XCTFail("nil HOTP") }
