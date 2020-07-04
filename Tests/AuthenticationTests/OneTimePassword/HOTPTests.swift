@@ -14,6 +14,16 @@ import XCTest
  Tests generation and validation of HOTP passwords.
  */
 class HOTPTests: XCTestCase {
+    
+    // MARK: Testing algorithm
+    
+    // Test byte counts of the various algorithms.
+    func testByteCounts() {
+        XCTAssertEqual(HOTP.Algorithm.sha1.byteCount, 20)
+        XCTAssertEqual(HOTP.Algorithm.sha256.byteCount, 32)
+        XCTAssertEqual(HOTP.Algorithm.sha384.byteCount, 48)
+        XCTAssertEqual(HOTP.Algorithm.sha512.byteCount, 64)
+    }
 
     // MARK: Testing creating a HOTP service
     
@@ -24,15 +34,17 @@ class HOTPTests: XCTestCase {
         
         XCTAssertEqual(hotp.algorithm, .sha1)
         XCTAssertEqual(hotp.digits, 6)
+        XCTAssertNil(hotp.offset)
     }
     
     // Test creating a HOTP service with non-default values.
     func testNonDefaults() {
         guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
-        guard let hotp = HOTP(secret: secret, algorithm: .sha1, digits: 8) else { return XCTFail("nil HOTP") }
+        guard let hotp = HOTP(secret: secret, algorithm: .sha1, digits: 8, offset: 5) else { return XCTFail("nil HOTP") }
         
         XCTAssertEqual(hotp.algorithm, .sha1)
         XCTAssertEqual(hotp.digits, 8)
+        XCTAssertEqual(hotp.offset, 5)
     }
     
     // Test creating HOTP services with invalid digits.
@@ -49,6 +61,34 @@ class HOTPTests: XCTestCase {
         
         XCTAssertNotNil(HOTP(secret: secret, digits: 1))
         XCTAssertNotNil(HOTP(secret: secret, digits: 9))
+    }
+    
+    // Test creating HOTP services with invalid offset.
+    func testInvalidOffset() {
+        guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
+        
+        XCTAssertNil(HOTP(secret: secret, algorithm: .sha1, offset: -1))
+        XCTAssertNil(HOTP(secret: secret, algorithm: .sha1, offset: 16))
+        XCTAssertNil(HOTP(secret: secret, algorithm: .sha256, offset: -1))
+        XCTAssertNil(HOTP(secret: secret, algorithm: .sha256, offset: 28))
+        XCTAssertNil(HOTP(secret: secret, algorithm: .sha384, offset: -1))
+        XCTAssertNil(HOTP(secret: secret, algorithm: .sha384, offset: 44))
+        XCTAssertNil(HOTP(secret: secret, algorithm: .sha512, offset: -1))
+        XCTAssertNil(HOTP(secret: secret, algorithm: .sha512, offset: 60))
+    }
+    
+    // Test creating HOTP services with minimum and maximum valid offset.
+    func testValidOffset() {
+        guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
+        
+        XCTAssertNotNil(HOTP(secret: secret, algorithm: .sha1, offset: 0))
+        XCTAssertNotNil(HOTP(secret: secret, algorithm: .sha1, offset: 15))
+        XCTAssertNotNil(HOTP(secret: secret, algorithm: .sha256, offset: 0))
+        XCTAssertNotNil(HOTP(secret: secret, algorithm: .sha256, offset: 27))
+        XCTAssertNotNil(HOTP(secret: secret, algorithm: .sha384, offset: 0))
+        XCTAssertNotNil(HOTP(secret: secret, algorithm: .sha384, offset: 43))
+        XCTAssertNotNil(HOTP(secret: secret, algorithm: .sha512, offset: 0))
+        XCTAssertNotNil(HOTP(secret: secret, algorithm: .sha512, offset: 59))
     }
     
     // MARK: Testing generating RFC 4226 reference passwords
@@ -116,10 +156,13 @@ class HOTPTests: XCTestCase {
 extension HOTPTests {
     
     static var allTests = [
+        ("testByteCounts", testByteCounts),
         ("testDefaults", testDefaults),
         ("testNonDefaults", testNonDefaults),
         ("testInvalidDigits", testInvalidDigits),
         ("testValidDigits", testValidDigits),
+        ("testInvalidOffset", testInvalidOffset),
+        ("testValidOffset", testValidOffset),
         ("testGenerateRFC4226Passwords", testGenerateRFC4226Passwords),
         ("testGenerateTestDataPasswords", testGenerateTestDataPasswords),
         ("testInvalidPasswords", testInvalidPasswords),
