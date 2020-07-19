@@ -76,7 +76,7 @@ public struct HOTP {
     public init?(secret: Data, algorithm: Algorithm = .sha1, digits: Int = 6, offset: Int? = nil, window: Int? = nil) {
         guard (1 ... Self.powersOfTen.count).contains(digits) else { return nil }
         guard (0 ..< algorithm.byteCount - 4).contains(offset ?? 0) else { return nil }
-        guard let wind = window ?? 1, (1 ... 5).contains(wind) else { return nil }
+        if let window = window, !(1 ... 5).contains(window) { return nil }
 
         self.key = SymmetricKey(data: secret)
         self.algorithm = algorithm
