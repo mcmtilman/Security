@@ -58,6 +58,12 @@ public struct HOTP {
     /// Default is nil.
     let offset: Int?
 
+    /// Defines the optional range of counters that may be used to validate a password for a given counter.
+    /// Given a non-nil window, the counter range is: `counter - window ... counter + window`, where the window range is: `1 ... 5`.
+    /// If the window is nil, validation requires the password to match the specified counter.
+    /// Default is nil.
+    let window: Int?
+
     // MARK: Private stored properties
     
     private let key: SymmetricKey
@@ -65,16 +71,18 @@ public struct HOTP {
     // MARK: Initializing
     
     /// Initializes the algorithm.
-    /// Fails if the number of digits or the optional truncation offset is out of range.
+    /// Fails if the number of digits, the optional truncation offset or the window is out of range.
     /// When using dynamic truncation the algorithm must have a byte count of at least 20, which is  true for all Algorithm cases.
-    public init?(secret: Data, algorithm: Algorithm = .sha1, digits: Int = 6, offset: Int? = nil) {
+    public init?(secret: Data, algorithm: Algorithm = .sha1, digits: Int = 6, offset: Int? = nil, window: Int? = nil) {
         guard (1 ... Self.powersOfTen.count).contains(digits) else { return nil }
         guard (0 ..< algorithm.byteCount - 4).contains(offset ?? 0) else { return nil }
-        
+        guard let wind = window ?? 1, (1 ... 5).contains(wind) else { return nil }
+
+        self.key = SymmetricKey(data: secret)
         self.algorithm = algorithm
         self.digits = digits
         self.offset = offset
-        self.key = SymmetricKey(data: secret)
+        self.window = window
     }
 
     // MARK: Generating
@@ -90,7 +98,9 @@ public struct HOTP {
     
     /// Answers if the password is valid for given counter.
     public func isValidPassword(_ password: String, for counter: Int64) -> Bool {
-        generatePassword(for: counter) == password
+        guard let window = window else { return generatePassword(for: counter) == password }
+        
+        return (-window ... window).contains { i in generatePassword(for: counter + Int64(i)) == password }
     }
     
     // MARK: Private generating

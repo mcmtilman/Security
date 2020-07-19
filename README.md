@@ -6,7 +6,7 @@
 
 #### HOTP
 
-HOTP implements the basic algorithm to generate a one time password according to [RFC 4226](https://tools.ietf.org/html/rfc4226).
+HOTP implements the basic algorithm to generate and validate a one time password according to [RFC 4226](https://tools.ietf.org/html/rfc4226).
 
 Supported *hashing algorithms* are:
 * SHA1 (default)
@@ -20,8 +20,16 @@ The algorithm supports a *number of (code) digits* in the range `1 ... 9`.
 
 By default, HOTP uses *dynamic truncation offsets*. This behavior can be overridden by an *explicit truncation offset* in the range `0 ..< algorithm.byteCount - 4`.
 
-#### WHOTP
+By default, HOTP uses no *window*, i.e. when validating a counter / password combination, the match must be exact. A window allows password validation to succeed if the password matches a counter sufficiently close to the specified counter. HOTP supports a window in the range `1 ... 5`. HOTP validation checks counters in the range `counter - window ... counter + window`.
 
-WHOTP extends the basic HOTP functionality with the concept of *window-based validation*: a password is valid for a given event counter if the counter's password or a password for any counter sufficiently close to given counter matches.
+#### TOTP
 
-WHOTP supports a *window* in the range `1 ... 5`. WHOTP validation checks counters in the range counter - window ... counter + window, starting at the center of the interval and progressively moving towards the endpoints of the interval.
+TOTP implements [RFC 6238](https://tools.ietf.org/html/rfc6238) 
+
+Supported *hashing algorithms* are:
+* SHA1 (default)
+* SHA256
+* SHA384 
+* SHA512.
+
+Note that RFC 6238 mentions SHA256 and SHA512, but not SHA384.
