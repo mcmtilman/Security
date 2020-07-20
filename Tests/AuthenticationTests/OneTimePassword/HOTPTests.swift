@@ -16,9 +16,10 @@ import XCTest
 class HOTPTests: XCTestCase {
     
     typealias Algorithm = HOTP.Algorithm
+    typealias Configuration = HOTP.Configuration
     typealias ConfigurationError = HOTP.ConfigurationError
     
-    // MARK: Testing algorithm
+    // MARK: Testing algorithms
     
     // Test byte counts of the various algorithms.
     func testByteCounts() {
@@ -28,54 +29,53 @@ class HOTPTests: XCTestCase {
         XCTAssertEqual(Algorithm.sha512.byteCount, 64)
     }
 
-    // MARK: Testing creating a HOTP service
+    // MARK: Testing the default configuration
     
-    // Test creating a HOTP service with default values.
+    // Test the default HOTP configuration.
+    func testDefaultConfiguration() {
+        XCTAssertEqual(Configuration.default.algorithm, .sha1)
+        XCTAssertEqual(Configuration.default.digits, 6)
+        XCTAssertNil(Configuration.default.offset)
+        XCTAssertNil(Configuration.default.window)
+    }
+
+    // MARK: Testing creating a HOTP configuration
+    
+    // Test creating a HOTP configuration with default values.
     func testDefaults() {
-        guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
-        guard let hotp = try? HOTP(secret: secret) else { return XCTFail("nil HOTP") }
+        guard let configuration = try? Configuration() else { return XCTFail("nil configuration") }
         
-        XCTAssertEqual(hotp.algorithm, .sha1)
-        XCTAssertEqual(hotp.digits, 6)
-        XCTAssertNil(hotp.offset)
-        XCTAssertNil(hotp.window)
+        XCTAssertEqual(configuration, Configuration.default)
     }
     
-    // Test creating a HOTP service with non-default values.
+    // Test creating a HOTP configuration with non-default values.
     func testNonDefaults() {
-        guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
-        guard let hotp = try? HOTP(secret: secret, algorithm: .sha256, digits: 8, offset: 5, window: 2) else { return XCTFail("nil HOTP") }
+        guard let configuration = try? Configuration(algorithm: .sha256, digits: 8, offset: 5, window: 2) else { return XCTFail("nil HOTP") }
         
-        XCTAssertEqual(hotp.algorithm, .sha256)
-        XCTAssertEqual(hotp.digits, 8)
-        XCTAssertEqual(hotp.offset, 5)
-        XCTAssertEqual(hotp.window, 2)
+        XCTAssertEqual(configuration.algorithm, .sha256)
+        XCTAssertEqual(configuration.digits, 8)
+        XCTAssertEqual(configuration.offset, 5)
+        XCTAssertEqual(configuration.window, 2)
     }
     
-    // Test creating HOTP services with invalid digits.
+    // Test creating HOTP configurations with invalid digits.
     func testInvalidDigits() {
-        guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
-        
         for digits in [0, 10] {
-            XCTAssertThrowsError(try HOTP(secret: secret, digits: digits), "digits error expected") { error in
+            XCTAssertThrowsError(try Configuration(digits: digits), "digits error expected") { error in
                 XCTAssertEqual(error as? ConfigurationError, .digits)
             }
         }
     }
     
-    // Test creating HOTP services with minimum and maximum valid digits.
+    // Test creating HOTP configurations with minimum and maximum valid digits.
     func testValidDigits() {
-        guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
-        
         for digits in [1, 9] {
-            XCTAssertNoThrow(try HOTP(secret: secret, digits: digits))
+            XCTAssertNoThrow(try Configuration(digits: digits))
         }
     }
     
-    // Test creating HOTP services with invalid offset.
+    // Test creating HOTP configurations with invalid offset.
     func testInvalidOffset() {
-        guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
-
         let offsets = [
             (Algorithm.sha1, -1), (.sha1, 16),
             (.sha256, -1), (.sha256, 28),
@@ -84,16 +84,14 @@ class HOTPTests: XCTestCase {
         ]
         
         for (algorithm, offset) in offsets {
-            XCTAssertThrowsError(try HOTP(secret: secret, algorithm: algorithm, offset: offset), "offset error expected") { error in
+            XCTAssertThrowsError(try Configuration(algorithm: algorithm, offset: offset), "offset error expected") { error in
                 XCTAssertEqual(error as? ConfigurationError, .offset)
             }
         }
     }
     
-    // Test creating HOTP services with minimum and maximum valid offset.
+    // Test creating HOTP configurations with minimum and maximum valid offset.
     func testValidOffset() {
-        guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
-        
         let offsets = [
             (Algorithm.sha1, 0), (.sha1, 15),
             (.sha256, 0), (.sha256, 27),
@@ -102,27 +100,23 @@ class HOTPTests: XCTestCase {
         ]
         
         for (algorithm, offset) in offsets {
-            XCTAssertNoThrow(try HOTP(secret: secret, algorithm: algorithm, offset: offset))
+            XCTAssertNoThrow(try Configuration(algorithm: algorithm, offset: offset))
         }
     }
     
-    // Test creating HOTP services with invalid window.
+    // Test creating HOTP configurations with invalid window.
     func testInvalidWindow() {
-        guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
-        
         for window in [0, 6] {
-            XCTAssertThrowsError(try HOTP(secret: secret, window: window), "window error expected") { error in
+            XCTAssertThrowsError(try Configuration(window: window), "window error expected") { error in
                 XCTAssertEqual(error as? ConfigurationError, .window)
             }
         }
     }
     
-    // Test creating HOTP services with minimum and maximum valid window.
+    // Test creating HOTP configurations with minimum and maximum valid window.
     func testValidWindow() {
-        guard let secret = "123456".data(using: .utf8) else { return XCTFail("nil secret") }
-        
         for window in [1, 5] {
-            XCTAssertNoThrow(try HOTP(secret: secret, window: window))
+            XCTAssertNoThrow(try Configuration(window: window))
         }
     }
     
@@ -131,7 +125,7 @@ class HOTPTests: XCTestCase {
     // Test generating SHA1-based passwords for counters 0 through 9, truncating to 6 digits and using the secret listed in the RFC.
     func testGenerateRFC4226Passwords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
-        guard let hotp = try? HOTP(secret: secret) else { return XCTFail("nil HOTP") }
+        let hotp = HOTP(secret: secret)
         
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
 
@@ -148,7 +142,8 @@ class HOTPTests: XCTestCase {
         for (counter, secret, algorithm, digits, otp, _) in HOTPTestResources.referenceData {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
             guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
-            guard let hotp = try? HOTP(secret: secret, algorithm: algorithm, digits: digits) else { return XCTFail("nil HOTP") }
+            guard let configuration = try? Configuration(algorithm: algorithm, digits: digits) else { return XCTFail("nil configuration") }
+            let hotp = HOTP(secret: secret, configuration: configuration)
             
             XCTAssertEqual(hotp.generatePassword(for: Int64(counter)), otp)
         }
@@ -167,14 +162,16 @@ class HOTPTests: XCTestCase {
         for (counter, secret, algorithm, digits, otp, offset) in HOTPTestResources.referenceData {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
             guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
-            guard let hotp = try? HOTP(secret: secret, algorithm: algorithm, digits: digits, offset: offset) else { return XCTFail("nil HOTP") }
+            guard let configuration = try? Configuration(algorithm: algorithm, digits: digits, offset: offset) else { return XCTFail("nil configuration") }
+            let hotp = HOTP(secret: secret, configuration: configuration)
 
             XCTAssertEqual(hotp.generatePassword(for: Int64(counter)), otp)
         }
         for (counter, secret, algorithm, digits, otp, offset) in HOTPTestResources.referenceData where digits > 2 {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
             guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
-            guard let hotp = try? HOTP(secret: secret, algorithm: algorithm, digits: digits, offset: (offset + 1) % (algorithm.byteCount - 4)) else { return XCTFail("nil HOTP") }
+            guard let configuration = try? Configuration(algorithm: algorithm, digits: digits, offset: (offset + 1) % (algorithm.byteCount - 4)) else { return XCTFail("nil configuration") }
+            let hotp = HOTP(secret: secret, configuration: configuration)
 
             XCTAssertNotEqual(hotp.generatePassword(for: Int64(counter)), otp)
         }
@@ -185,8 +182,8 @@ class HOTPTests: XCTestCase {
     // Test validating wrong passwords for the RFC2446 reference counter / passwords.
     func testInvalidPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
-        guard let hotp = try? HOTP(secret: secret) else { return XCTFail("nil HOTP") }
-        
+        let hotp = HOTP(secret: secret)
+
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
 
         for i in 0 ... 9 {
@@ -199,8 +196,8 @@ class HOTPTests: XCTestCase {
     // Test validating the RFC2446 reference passwords.
     func testValidPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
-        guard let hotp = try? HOTP(secret: secret) else { return XCTFail("nil HOTP") }
-        
+        let hotp = HOTP(secret: secret)
+
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
 
         for i in 0 ... 9 {
@@ -213,7 +210,8 @@ class HOTPTests: XCTestCase {
     // Test validating the RFC2446 reference passwords for counters outside a window of 2 of the actual counter.
     func testInvalidWindowPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
-        guard let hotp = try? HOTP(secret: secret, window: 2) else { return XCTFail("nil HOTP") }
+        guard let configuration = try? Configuration(window: 2) else { return XCTFail("nil configuration") }
+        let hotp = HOTP(secret: secret, configuration: configuration)
 
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
 
@@ -226,7 +224,8 @@ class HOTPTests: XCTestCase {
     // Test validating the RFC2446 reference passwords for counters inside a window of 2 of the actual counter.
     func testValidWindowPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
-        guard let hotp = try? HOTP(secret: secret, window: 2) else { return XCTFail("nil HOTP") }
+        guard let configuration = try? Configuration(window: 2) else { return XCTFail("nil configuration") }
+        let hotp = HOTP(secret: secret, configuration: configuration)
 
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
 
@@ -246,6 +245,7 @@ extension HOTPTests {
     
     static var allTests = [
         ("testByteCounts", testByteCounts),
+        ("testDefaultConfiguration", testDefaultConfiguration),
         ("testDefaults", testDefaults),
         ("testNonDefaults", testNonDefaults),
         ("testInvalidDigits", testInvalidDigits),
