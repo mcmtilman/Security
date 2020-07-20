@@ -36,6 +36,15 @@ public struct HOTP {
 
     }
     
+    /**
+     Configuration errors.
+     */
+    public enum ConfigurationError: Error {
+        
+        case digits, offset, window
+        
+    }
+    
     // MARK: Private static stored properties
     
     // Pre-computed powers of ten for 1 through 9.
@@ -73,10 +82,10 @@ public struct HOTP {
     /// Initializes the algorithm.
     /// Fails if the number of digits, the optional truncation offset or the window is out of range.
     /// When using dynamic truncation the algorithm must have a byte count of at least 20, which is  true for all Algorithm cases.
-    public init?(secret: Data, algorithm: Algorithm = .sha1, digits: Int = 6, offset: Int? = nil, window: Int? = nil) {
-        guard (1 ... Self.powersOfTen.count).contains(digits) else { return nil }
-        guard (0 ..< algorithm.byteCount - 4).contains(offset ?? 0) else { return nil }
-        if let window = window, !(1 ... 5).contains(window) { return nil }
+    public init(secret: Data, algorithm: Algorithm = .sha1, digits: Int = 6, offset: Int? = nil, window: Int? = nil) throws {
+        guard (1 ... Self.powersOfTen.count).contains(digits) else { throw ConfigurationError.digits }
+        guard (0 ..< algorithm.byteCount - 4).contains(offset ?? 0) else { throw ConfigurationError.offset }
+        if let window = window, !(1 ... 5).contains(window) { throw ConfigurationError.window }
 
         self.key = SymmetricKey(data: secret)
         self.algorithm = algorithm
