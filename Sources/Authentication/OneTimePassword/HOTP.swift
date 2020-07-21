@@ -37,23 +37,9 @@ public struct HOTP {
     }
     
     /**
-     Configuration errors.
-     */
-    public enum ConfigurationError: Error {
-        
-        case digits, offset, window
-        
-    }
-    
-    /**
      HOTP configuration.
      */
-    public struct Configuration: Equatable {
-        
-        // MARK: Private default configuration
-
-        /// Default configuration uses SHA1, 6 digits, no offset and no window.
-        public static let `default` = Self(.sha1, 6, nil, nil)
+    public struct Configuration {
         
         // MARK: Stored properties
         
@@ -81,32 +67,13 @@ public struct HOTP {
         // MARK: Initializing
         
         /// Initializes and validates the configuration.
-        /// Fails if the number of digits, the optional truncation offset or the window is out of range.
+        /// Clamp the number of digits, the optional truncation offset and the optional window to their respective ranges.
         /// When using dynamic truncation the algorithm must have a byte count of at least 20, which is  true for all Algorithm cases.
-        public init(algorithm: Algorithm = .sha1, digits: Int = 6, offset: Int? = nil, window: Int? = nil) throws {
-            self.init(algorithm, digits, offset, window)
-            try validate()
-        }
-        
-        // MARK: Private initializing
-         
-        // Initializes the configuration without validation.
-        private init(_ algorithm: Algorithm , _ digits: Int, _ offset: Int?, _ window: Int?) {
+        public init(algorithm: Algorithm = .sha1, digits: Int = 6, offset: Int? = nil, window: Int? = nil) {
             self.algorithm = algorithm
-            self.digits = digits
-            self.offset = offset
-            self.window = window
-        }
-         
-        // MARK: Private validating
-        
-        // Validates the configuration.
-        // Fails if the number of digits, the optional truncation offset or the window is out of range.
-        // When using dynamic truncation the algorithm must have a byte count of at least 20, which is true for all Algorithm cases.
-        private func validate() throws {
-            guard (1 ... 9).contains(digits) else { throw ConfigurationError.digits }
-            guard (0 ..< algorithm.byteCount - 4).contains(offset ?? 0) else { throw ConfigurationError.offset }
-            if let window = window, !(1 ... 5).contains(window) { throw ConfigurationError.window }
+            self.digits = (1 ... 9).clamp(digits)
+            self.offset = (0 ... algorithm.byteCount - 5).clamp(offset)
+            self.window = (1 ... 5).clamp(window)
         }
         
     }
@@ -116,19 +83,21 @@ public struct HOTP {
     // Pre-computed powers of ten for 1 through maximum number of digits (9).
     private static let powersOfTen = [ 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 ]
 
+    // MARK: Stored properties
+    
+    /// The configuration.
+    /// Default uses SHA1, 6 digits, no offset and no window.
+    let configuration: Configuration
+
     // MARK: Private stored properties
     
-    // The configuration.
-    // Default uses SHA1, 6 digits, no offset and no window.
-    private let configuration: Configuration
-
     // The secret key.
     private let key: SymmetricKey
 
     // MARK: Initializing
     
     /// Initializes the service with given secret and (default) configuration.
-    public init(secret: Data, configuration: Configuration = Configuration.default) {
+    public init(secret: Data, configuration: Configuration = .init()) {
         self.key = SymmetricKey(data: secret)
         self.configuration = configuration
     }
@@ -175,6 +144,24 @@ public struct HOTP {
         case .sha384: return hash(with: SHA384.self)
         case .sha512: return hash(with: SHA512.self)
         }
+    }
+    
+}
+
+
+/**
+ Adds support to clamp a value to a closed range.
+ */
+extension ClosedRange {
+    
+    /// Answers the value clamped to the range.
+    func clamp(_ value: Bound) -> Bound {
+        value < lowerBound ? lowerBound : (value > upperBound ? upperBound : value)
+    }
+    
+    /// Answers the optional value clamped to the range if non-nil.
+    func clamp(_ value: Bound?) -> Bound? {
+        value.map(clamp)
     }
     
 }

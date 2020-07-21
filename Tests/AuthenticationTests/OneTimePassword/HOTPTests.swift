@@ -17,7 +17,6 @@ class HOTPTests: XCTestCase {
     
     typealias Algorithm = HOTP.Algorithm
     typealias Configuration = HOTP.Configuration
-    typealias ConfigurationError = HOTP.ConfigurationError
     
     // MARK: Testing algorithms
     
@@ -29,28 +28,21 @@ class HOTPTests: XCTestCase {
         XCTAssertEqual(Algorithm.sha512.byteCount, 64)
     }
 
-    // MARK: Testing the default configuration
-    
-    // Test the default HOTP configuration.
-    func testDefaultConfiguration() {
-        XCTAssertEqual(Configuration.default.algorithm, .sha1)
-        XCTAssertEqual(Configuration.default.digits, 6)
-        XCTAssertNil(Configuration.default.offset)
-        XCTAssertNil(Configuration.default.window)
-    }
-
     // MARK: Testing creating a HOTP configuration
     
     // Test creating a HOTP configuration with default values.
     func testDefaults() {
-        guard let configuration = try? Configuration() else { return XCTFail("nil configuration") }
+        let configuration = Configuration()
         
-        XCTAssertEqual(configuration, Configuration.default)
+        XCTAssertEqual(configuration.algorithm, .sha1)
+        XCTAssertEqual(configuration.digits, 6)
+        XCTAssertNil(configuration.offset)
+        XCTAssertNil(configuration.window)
     }
     
     // Test creating a HOTP configuration with non-default values.
     func testNonDefaults() {
-        guard let configuration = try? Configuration(algorithm: .sha256, digits: 8, offset: 5, window: 2) else { return XCTFail("nil HOTP") }
+        let configuration = Configuration(algorithm: .sha256, digits: 8, offset: 5, window: 2)
         
         XCTAssertEqual(configuration.algorithm, .sha256)
         XCTAssertEqual(configuration.digits, 8)
@@ -60,66 +52,85 @@ class HOTPTests: XCTestCase {
     
     // Test creating HOTP configurations with invalid digits.
     func testInvalidDigits() {
-        for digits in [0, 10] {
-            XCTAssertThrowsError(try Configuration(digits: digits), "digits error expected") { error in
-                XCTAssertEqual(error as? ConfigurationError, .digits)
-            }
+        for (given, expected) in [(0, 1), (10, 9)] {
+            let configuration = Configuration(digits: given)
+            
+            XCTAssertEqual(configuration.digits, expected)
         }
     }
     
     // Test creating HOTP configurations with minimum and maximum valid digits.
     func testValidDigits() {
-        for digits in [1, 9] {
-            XCTAssertNoThrow(try Configuration(digits: digits))
+        for (given, expected) in [(1, 1), (9, 9)] {
+            let configuration = Configuration(digits: given)
+            
+            XCTAssertEqual(configuration.digits, expected)
         }
     }
     
     // Test creating HOTP configurations with invalid offset.
     func testInvalidOffset() {
         let offsets = [
-            (Algorithm.sha1, -1), (.sha1, 16),
-            (.sha256, -1), (.sha256, 28),
-            (.sha384, -1), (.sha384, 44),
-            (.sha512, -1), (.sha512, 60)
+            (Algorithm.sha1, -1, 0), (.sha1, 16, 15),
+            (.sha256, -1, 0), (.sha256, 28, 27),
+            (.sha384, -1, 0), (.sha384, 44, 43),
+            (.sha512, -1, 0), (.sha512, 60, 59)
         ]
         
-        for (algorithm, offset) in offsets {
-            XCTAssertThrowsError(try Configuration(algorithm: algorithm, offset: offset), "offset error expected") { error in
-                XCTAssertEqual(error as? ConfigurationError, .offset)
-            }
+        for (algorithm, given, expected) in offsets {
+            let configuration = Configuration(algorithm: algorithm, offset: given)
+            
+            XCTAssertEqual(configuration.offset, expected)
         }
     }
     
     // Test creating HOTP configurations with minimum and maximum valid offset.
     func testValidOffset() {
         let offsets = [
-            (Algorithm.sha1, 0), (.sha1, 15),
-            (.sha256, 0), (.sha256, 27),
-            (.sha384, 0), (.sha384, 43),
-            (.sha512, 0), (.sha512, 59)
+            (Algorithm.sha1, 0, 0), (.sha1, 16, 15),
+            (.sha256, 0, 0), (.sha256, 27, 27),
+            (.sha384, 0, 0), (.sha384, 43, 43),
+            (.sha512, 0, 0), (.sha512, 59, 59)
         ]
         
-        for (algorithm, offset) in offsets {
-            XCTAssertNoThrow(try Configuration(algorithm: algorithm, offset: offset))
+        for (algorithm, given, expected) in offsets {
+            let configuration = Configuration(algorithm: algorithm, offset: given)
+            
+            XCTAssertEqual(configuration.offset, expected)
         }
     }
     
     // Test creating HOTP configurations with invalid window.
     func testInvalidWindow() {
-        for window in [0, 6] {
-            XCTAssertThrowsError(try Configuration(window: window), "window error expected") { error in
-                XCTAssertEqual(error as? ConfigurationError, .window)
-            }
+        for (given, expected) in [(0, 1), (6, 5)] {
+            let configuration = Configuration(window: given)
+            
+            XCTAssertEqual(configuration.window, expected)
         }
     }
     
     // Test creating HOTP configurations with minimum and maximum valid window.
     func testValidWindow() {
-        for window in [1, 5] {
-            XCTAssertNoThrow(try Configuration(window: window))
+        for (given, expected) in [(1, 1), (5, 5)] {
+            let configuration = Configuration(window: given)
+            
+            XCTAssertEqual(configuration.window, expected)
         }
     }
     
+    // MARK: Testing a HOTP service with default configuration
+    
+    // Test creating a HOTP service with default configuration.
+    func testDefaultServiceConfiguration() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        let hotp = HOTP(secret: secret)
+
+        XCTAssertEqual(hotp.configuration.algorithm, .sha1)
+        XCTAssertEqual(hotp.configuration.digits, 6)
+        XCTAssertNil(hotp.configuration.offset)
+        XCTAssertNil(hotp.configuration.window)
+    }
+
     // MARK: Testing generating RFC 4226 reference passwords
     
     // Test generating SHA1-based passwords for counters 0 through 9, truncating to 6 digits and using the secret listed in the RFC.
@@ -142,7 +153,7 @@ class HOTPTests: XCTestCase {
         for (counter, secret, algorithm, digits, otp, _) in HOTPTestResources.referenceData {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
             guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
-            guard let configuration = try? Configuration(algorithm: algorithm, digits: digits) else { return XCTFail("nil configuration") }
+            let configuration = Configuration(algorithm: algorithm, digits: digits)
             let hotp = HOTP(secret: secret, configuration: configuration)
             
             XCTAssertEqual(hotp.generatePassword(for: Int64(counter)), otp)
@@ -162,7 +173,7 @@ class HOTPTests: XCTestCase {
         for (counter, secret, algorithm, digits, otp, offset) in HOTPTestResources.referenceData {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
             guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
-            guard let configuration = try? Configuration(algorithm: algorithm, digits: digits, offset: offset) else { return XCTFail("nil configuration") }
+            let configuration = Configuration(algorithm: algorithm, digits: digits, offset: offset)
             let hotp = HOTP(secret: secret, configuration: configuration)
 
             XCTAssertEqual(hotp.generatePassword(for: Int64(counter)), otp)
@@ -170,7 +181,7 @@ class HOTPTests: XCTestCase {
         for (counter, secret, algorithm, digits, otp, offset) in HOTPTestResources.referenceData where digits > 2 {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
             guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
-            guard let configuration = try? Configuration(algorithm: algorithm, digits: digits, offset: (offset + 1) % (algorithm.byteCount - 4)) else { return XCTFail("nil configuration") }
+            let configuration = Configuration(algorithm: algorithm, digits: digits, offset: (offset + 1) % (algorithm.byteCount - 4))
             let hotp = HOTP(secret: secret, configuration: configuration)
 
             XCTAssertNotEqual(hotp.generatePassword(for: Int64(counter)), otp)
@@ -210,7 +221,7 @@ class HOTPTests: XCTestCase {
     // Test validating the RFC2446 reference passwords for counters outside a window of 2 of the actual counter.
     func testInvalidWindowPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
-        guard let configuration = try? Configuration(window: 2) else { return XCTFail("nil configuration") }
+        let configuration = Configuration(window: 2)
         let hotp = HOTP(secret: secret, configuration: configuration)
 
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
@@ -224,7 +235,7 @@ class HOTPTests: XCTestCase {
     // Test validating the RFC2446 reference passwords for counters inside a window of 2 of the actual counter.
     func testValidWindowPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
-        guard let configuration = try? Configuration(window: 2) else { return XCTFail("nil configuration") }
+        let configuration = Configuration(window: 2)
         let hotp = HOTP(secret: secret, configuration: configuration)
 
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
@@ -245,7 +256,6 @@ extension HOTPTests {
     
     static var allTests = [
         ("testByteCounts", testByteCounts),
-        ("testDefaultConfiguration", testDefaultConfiguration),
         ("testDefaults", testDefaults),
         ("testNonDefaults", testNonDefaults),
         ("testInvalidDigits", testInvalidDigits),
@@ -254,6 +264,7 @@ extension HOTPTests {
         ("testValidOffset", testValidOffset),
         ("testInvalidWindow", testInvalidWindow),
         ("testValidWindow", testValidWindow),
+        ("testDefaultServiceConfiguration", testDefaultServiceConfiguration),
         ("testGenerateRFC4226Passwords", testGenerateRFC4226Passwords),
         ("testGenerateTestDataPasswords", testGenerateTestDataPasswords),
         ("testTruncationOffsets", testTruncationOffsets),
