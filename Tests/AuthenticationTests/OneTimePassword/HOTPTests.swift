@@ -131,7 +131,7 @@ class HOTPTests: XCTestCase {
         XCTAssertNil(hotp.configuration.window)
     }
 
-    // MARK: Testing generating RFC 4226 reference passwords
+    // MARK: Testing generating RFC4226 reference passwords
     
     // Test generating SHA1-based passwords for counters 0 through 9, truncating to 6 digits and using the secret listed in the RFC.
     func testGenerateRFC4226Passwords() {
@@ -188,14 +188,14 @@ class HOTPTests: XCTestCase {
         }
     }
     
-    // MARK: Testing validating RFC 4226 reference passwords
+    // MARK: Testing validating RFC4226 reference passwords
     
     // Test validating wrong passwords for the RFC2446 reference counter / passwords.
     func testInvalidPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
         let hotp = HOTP(secret: secret)
 
-        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
         for i in 0 ... 9 {
             for j in 0 ... 9 where j != i {
@@ -209,14 +209,14 @@ class HOTPTests: XCTestCase {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
         let hotp = HOTP(secret: secret)
 
-        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
         for i in 0 ... 9 {
             XCTAssertTrue(hotp.isValidPassword(expected[i], for: Int64(i)))
         }
     }
     
-    // MARK: Testing validating RFC 4226 reference passwords using a window
+    // MARK: Testing validating RFC4226 reference passwords using a window
     
     // Test validating the RFC2446 reference passwords for counters outside a window of 2 of the actual counter.
     func testInvalidWindowPasswords() {
@@ -224,7 +224,7 @@ class HOTPTests: XCTestCase {
         let configuration = Configuration(window: 2)
         let hotp = HOTP(secret: secret, configuration: configuration)
 
-        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
         for i in 0 ... 9 {
             XCTAssertFalse(hotp.isValidPassword(expected[i], for: Int64(i - 3)))
@@ -238,7 +238,7 @@ class HOTPTests: XCTestCase {
         let configuration = Configuration(window: 2)
         let hotp = HOTP(secret: secret, configuration: configuration)
 
-        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
         for i in 0 ... 9 {
             for j in -2 ... 2 {

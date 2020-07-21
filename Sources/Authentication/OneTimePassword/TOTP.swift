@@ -9,26 +9,50 @@
 import Foundation
 
 /**
- Basic TOTP algorithm with optional window support for skewed clocks  ([RFC 4226](https://tools.ietf.org/html/rfc6238))
+ Basic TOTP algorithm based on the HOTP algorithm ([RFC 4226](https://tools.ietf.org/html/rfc6238))
  */
 public struct TOTP {
     
+    /**
+     TOTP configuration.
+     */
+    public struct Configuration {
+        
+        // MARK: Stored properties
+        
+        /// Dates in the same period represent the same counter.
+        /// The counter is calculated as the date's timeinterval in seconds since 00:00:00 UTC on 01/01/1970 divided by the period.
+        /// The range is: `TimeInterval(1) ... TimeInterval(120)`.
+        /// Default is 30 seconds.
+        let period: TimeInterval
+
+        // MARK: Initializing
+        
+        /// Initializes and validates the configuration.
+        /// Clamps the period to the range 1... 120 seconds.
+        public init(period: TimeInterval = 30) {
+            self.period = (1 ... 120).clamp(period)
+        }
+        
+    }
+
     // MARK: Stored properties
     
-    /// Number of seconds a date represents by the same counter.
-    /// The range is: `TimeInterval(1) ... TimeInterval(120)`.
-    /// Default is 30 seconds.
-    let period: TimeInterval
+    /// The configuration.
+    /// Default uses a period of 30 seconds.
+    let configuration: Configuration
     
-    /// Underlying HOTP service.
-    let hotp: HOTP
+    // MARK: Private stored properties
+    
+    // The basic HTOP service
+    private let hotp: HOTP
 
     // MARK: Initializing
     
-    /// Initializes the algorithm, clamping the period if necessary.
-    public init(hotp: HOTP, period: TimeInterval = 30) {
+    /// Initializes the service with given HOTP service and (default) configuration.
+    public init(hotp: HOTP, configuration: Configuration = .init()) {
         self.hotp = hotp
-        self.period = (1 ... 120).clamp(period)
+        self.configuration = configuration
     }
 
     // MARK: Generating
@@ -51,7 +75,7 @@ public struct TOTP {
     
     // Converts the date into a counter, which is the same for all dates in the same period.
     private func counter(from date: Date) -> Int64 {
-        Int64(date.timeIntervalSince1970 / period)
+        Int64(date.timeIntervalSince1970 / configuration.period)
     }
     
 }
