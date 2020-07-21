@@ -33,3 +33,5 @@ Supported *hashing algorithms* are:
 * SHA512.
 
 Note that RFC 6238 mentions SHA256 and SHA512, but not SHA384.
+
+The algorithm supports a *period* in the range `1 ... 120` seconds. All dates in the same period yield the same password.
