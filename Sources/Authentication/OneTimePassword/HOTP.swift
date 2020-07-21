@@ -156,7 +156,7 @@ extension ClosedRange {
     
     /// Answers the value clamped to the range.
     func clamp(_ value: Bound) -> Bound {
-        value < lowerBound ? lowerBound : (value > upperBound ? upperBound : value)
+        Swift.min(Swift.max(value, lowerBound), upperBound)
     }
     
     /// Answers the optional value clamped to the range if non-nil.
