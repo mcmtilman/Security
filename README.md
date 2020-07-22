@@ -35,3 +35,7 @@ Supported *hashing algorithms* are:
 Note that RFC 6238 mentions SHA256 and SHA512, but not SHA384.
 
 The algorithm supports a *period* in the range `1 ... 120` seconds. All dates in the same period yield the same password.
+
+# Requirements
+
+The code has been tested with the Swift 5.1 Snapshot 2019-06-28 toolchain in XCode 11.6 and with the XCode 11.6 toolchain.
