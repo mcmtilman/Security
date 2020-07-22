@@ -148,13 +148,9 @@ class HOTPTests: XCTestCase {
     // Test generating passwords for different counter / secret / hash algorithm / digits combinations.
     // Compare results with test data produced by the RFC4226 Java reference implementation.
     func testGenerateTestDataPasswords() {
-        let algorithms = ["SHA1": HOTP.Algorithm.sha1, "SHA256": .sha256, "SHA384": .sha384, "SHA512": .sha512]
-        
         for (counter, secret, algorithm, digits, otp, _) in HOTPTestResources.referenceData {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
-            guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
-            let configuration = Configuration(algorithm: algorithm, digits: digits)
-            let hotp = HOTP(secret: secret, configuration: configuration)
+            let hotp = HOTP(secret: secret, configuration: .init(algorithm: algorithm, digits: digits))
             
             XCTAssertEqual(hotp.generatePassword(for: Int64(counter)), otp)
         }
@@ -168,19 +164,14 @@ class HOTPTests: XCTestCase {
     // Then test using shifted explicit offsets, with enough digits to generate different results.
     //
     func testTruncationOffsets() {
-        let algorithms = ["SHA1": HOTP.Algorithm.sha1, "SHA256": .sha256, "SHA384": .sha384, "SHA512": .sha512]
-        
         for (counter, secret, algorithm, digits, otp, offset) in HOTPTestResources.referenceData {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
-            guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
-            let configuration = Configuration(algorithm: algorithm, digits: digits, offset: offset)
-            let hotp = HOTP(secret: secret, configuration: configuration)
+            let hotp = HOTP(secret: secret, configuration: .init(algorithm: algorithm, digits: digits, offset: offset))
 
             XCTAssertEqual(hotp.generatePassword(for: Int64(counter)), otp)
         }
         for (counter, secret, algorithm, digits, otp, offset) in HOTPTestResources.referenceData where digits > 2 {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
-            guard let algorithm = algorithms[algorithm] else { return XCTFail("Unsupported algorithm") }
             let configuration = Configuration(algorithm: algorithm, digits: digits, offset: (offset + 1) % (algorithm.byteCount - 4))
             let hotp = HOTP(secret: secret, configuration: configuration)
 
@@ -221,8 +212,7 @@ class HOTPTests: XCTestCase {
     // Test validating the RFC2446 reference passwords for counters outside a window of 2 of the actual counter.
     func testInvalidWindowPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
-        let configuration = Configuration(window: 2)
-        let hotp = HOTP(secret: secret, configuration: configuration)
+        let hotp = HOTP(secret: secret, configuration: .init(window: 2))
 
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
@@ -235,8 +225,7 @@ class HOTPTests: XCTestCase {
     // Test validating the RFC2446 reference passwords for counters inside a window of 2 of the actual counter.
     func testValidWindowPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
-        let configuration = Configuration(window: 2)
-        let hotp = HOTP(secret: secret, configuration: configuration)
+        let hotp = HOTP(secret: secret, configuration: .init(window: 2))
 
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
@@ -246,6 +235,7 @@ class HOTPTests: XCTestCase {
             }
         }
     }
+    
 }
 
 
