@@ -26,15 +26,18 @@ By default, HOTP uses no *window*, i.e. when validating a counter / password com
 
 TOTP implements [RFC 6238](https://tools.ietf.org/html/rfc6238) 
 
-Supported *hashing algorithms* are:
-* SHA1 (default)
+The TOTP algorithm extends HOTP with the functionality to convert dates into counters and to configure this conversion process. The counter is calculated as the date's timeinterval in seconds since 00:00:00 UTC on 01/01/1970 divided by the *period*. Thus all dates in the same period yield the same password.
+
+The algorithm supports a *period* in the range `1 ... 120` seconds, with a default of 30 seconds.
+
+The supported *hashing algorithms* are the same as for HOTP:
+* SHA1
 * SHA256
 * SHA384 
 * SHA512.
 
 Note that RFC 6238 mentions SHA256 and SHA512, but not SHA384.
 
-The algorithm supports a *period* in the range `1 ... 120` seconds. All dates in the same period yield the same password.
 
 # Requirements
 
