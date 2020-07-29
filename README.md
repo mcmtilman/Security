@@ -20,7 +20,7 @@ The algorithm supports a *number of (code) digits* in the range `1 ... 9`.
 
 By default, HOTP uses *dynamic truncation offsets*. This behavior can be overridden by an *explicit truncation offset* in the range `0 ..< algorithm.byteCount - 4`.
 
-By default, HOTP uses no *window*, i.e. when validating a counter / password combination, the match must be exact. A window allows password validation to succeed if the password matches a counter sufficiently close to the specified counter. HOTP supports a window in the range `1 ... 5`. HOTP validation checks counters in the range `counter - window ... counter + window`.
+By default, HOTP uses a zero *window*, i.e. when validating a counter / password combination, the password must match that specific counter. A non-zero window allows password validation to succeed if the password matches a counter sufficiently close to the specified counter by checking counters in the range `counter - window ... counter + window`. HOTP supports a window in the range `0 ... 5`.
 
 #### TOTP
 

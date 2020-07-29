@@ -15,9 +15,7 @@ import Foundation
  */
 public struct HOTP {
     
-    /**
-     Supported hashing algorithms.
-     */
+    /// Supported hashing algorithms.
     public enum Algorithm {
         
         case sha1, sha256, sha384, sha512
@@ -37,9 +35,7 @@ public struct HOTP {
 
     }
     
-    /**
-     HOTP configuration.
-     */
+    /// HOTP configuration.
     public struct Configuration {
         
         // MARK: Stored properties
@@ -59,22 +55,21 @@ public struct HOTP {
         /// Default is nil.
         let offset: Int?
 
-        /// Defines the optional range of counters that may be used to validate a password for a given counter.
-        /// Given a non-nil window, the counter range is: `counter - window ... counter + window`, where the window range is: `1 ... 5`.
-        /// If the window is nil, validation requires the password to match the specified counter.
-        /// Default is nil.
-        let window: Int?
+        /// Defines the range of counters that may be used to match a given password.
+        /// The counter range is: `counter - window ... counter + window`, where the window range is: `0 ... 5`.
+        /// Default is 0.
+        let window: Int
 
         // MARK: Initializing
         
         /// Initializes and validates the configuration.
-        /// Clamp the number of digits, the optional truncation offset and the optional window to their respective ranges.
+        /// Clamp the number of digits, the optional truncation offset and the window to their respective ranges.
         /// When using dynamic truncation the algorithm must have a byte count of at least 20, which is  true for all Algorithm cases.
-        public init(algorithm: Algorithm = .sha1, digits: Int = 6, offset: Int? = nil, window: Int? = nil) {
+        public init(algorithm: Algorithm = .sha1, digits: Int = 6, offset: Int? = nil, window: Int = 0) {
             self.algorithm = algorithm
             self.digits = (1 ... 9).clamp(digits)
             self.offset = (0 ... algorithm.byteCount - 5).clamp(offset)
-            self.window = (1 ... 5).clamp(window)
+            self.window = (0 ... 5).clamp(window)
         }
         
     }
@@ -115,10 +110,20 @@ public struct HOTP {
     // MARK: Validating
     
     /// Answers if the password is valid for given counter.
+    /// The password must match any of the passwords for counters in the range `counter - window ... counter + window`.
     public func isValidPassword(_ password: String, for counter: Int64) -> Bool {
-        guard let window = configuration.window else { return generatePassword(for: counter) == password }
+        skew(counter: counter, password: password) != nil
+    }
+    
+    /// Answers the *skew* of a valid password / counter combination, or nil if the combination is not valid.
+    /// For a valid combination the skew is the offset of the counter in the range `counter - window ... counter + window` matching the password. For a default window, the skew is 0.
+    public func skew(counter: Int64, password: String) -> Int? {
+        for i in 0 ... configuration.window {
+            if i > 0, generatePassword(for: counter - Int64(i)) == password { return -i }
+            if generatePassword(for: counter + Int64(i)) == password { return i }
+        }
         
-        return (-window ... window).contains { i in generatePassword(for: counter + Int64(i)) == password }
+        return nil
     }
     
     // MARK: Private generating

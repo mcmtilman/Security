@@ -35,8 +35,8 @@ class TOTPTests: XCTestCase {
     
     // Test creating TOTP configurations with invalid period.
     func testInvalidPeriod() {
-        for (given, expected) in [(0, 1), (121, 120)] {
-            let configuration = Configuration(period: TimeInterval(given))
+        for (period, expected) in [(0, 1), (121, 120)] {
+            let configuration = Configuration(period: TimeInterval(period))
             
             XCTAssertEqual(configuration.period, TimeInterval(expected))
         }
@@ -44,8 +44,8 @@ class TOTPTests: XCTestCase {
     
     // Test creating TOTP configurations with minimum and maximum valid periods.
     func testValidPeriod() {
-        for (given, expected) in [(1, 1), (120, 120)] {
-            let configuration = Configuration(period: TimeInterval(given))
+        for (period, expected) in [(1, 1), (120, 120)] {
+            let configuration = Configuration(period: TimeInterval(period))
             
             XCTAssertEqual(configuration.period, TimeInterval(expected))
         }
@@ -76,7 +76,7 @@ class TOTPTests: XCTestCase {
         }
     }
     
-    // MARK: Testing validating RFC6238 reference passwords
+    // MARK: Testing validation of RFC6238 reference passwords using a zero window
     
     // Test validating the RFC6238 reference passwords using dates skewed by 30 seconds.
     func testInvalidPasswords() {
@@ -100,10 +100,34 @@ class TOTPTests: XCTestCase {
         }
     }
 
-    // MARK: Testing validating RFC6238 reference passwords using a window
+    // MARK: Testing skew of RFC6238 reference passwords using a zero window
     
-    // Test validating the RFC6238 reference passwords for dates outside a window of 2 of the actual date.
-    func testInvalidWindowPasswords() {
+    // Test the skew of RFC6238 reference passwords using dates outside the correct period.
+    func testInvalidPasswordsSkew() {
+        for (_, seconds, secret, algorithm, otp) in TOTPTestResources.referenceData {
+            guard let secret = secret.data(using: .utf8) else { return XCTFail("nil secret") }
+            let hotp = HOTP(secret: secret, configuration: .init(algorithm: algorithm, digits: 8))
+            let totp = TOTP(hotp: hotp, configuration: .init(period: 30))
+
+            XCTAssertNil(totp.skew(date: Date(timeIntervalSince1970: TimeInterval(seconds + 30)), password: otp))
+        }
+    }
+    
+    // Test the skew of RFC6238 reference passwords using correct dates.
+    func testValidPasswordsSkew() {
+        for (_, seconds, secret, algorithm, otp) in TOTPTestResources.referenceData {
+            guard let secret = secret.data(using: .utf8) else { return XCTFail("nil secret") }
+            let hotp = HOTP(secret: secret, configuration: .init(algorithm: algorithm, digits: 8))
+            let totp = TOTP(hotp: hotp, configuration: .init(period: 30))
+
+            XCTAssertEqual(totp.skew(date: Date(timeIntervalSince1970: TimeInterval(seconds)), password: otp), 0)
+        }
+    }
+
+    // MARK: Testing validation of RFC6238 reference passwords using a non-zero window
+    
+    // Test validating the RFC6238 reference passwords for dates outside a window of 2 of the correct date.
+    func testWindowInvalidPasswords() {
         for (_, seconds, secret, algorithm, otp) in TOTPTestResources.referenceData where seconds >= 90 {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("nil secret") }
             let hotp = HOTP(secret: secret, configuration: .init(algorithm: algorithm, digits: 8, window: 2))
@@ -114,8 +138,8 @@ class TOTPTests: XCTestCase {
         }
     }
     
-    // Test validating the RFC6238 reference passwords for dates inside a window of 2 of the actual date.
-    func testValidWindowPasswords() {
+    // Test validating the RFC6238 reference passwords for dates inside a window of 2 of the correct date.
+    func testWindowValidPasswords() {
         for (_, seconds, secret, algorithm, otp) in TOTPTestResources.referenceData where seconds >= 90 {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("nil secret") }
             let hotp = HOTP(secret: secret, configuration: .init(algorithm: algorithm, digits: 8, window: 2))
@@ -126,10 +150,36 @@ class TOTPTests: XCTestCase {
         }
     }
 
-    // MARK: Testing validating RFC6238 reference passwords using different periods
+    // MARK: Testing skew of RFC6238 reference passwords using a non-zero window
+    
+    // Test the skew of RFC6238 reference passwords for dates outside a window of 2 of the correct date.
+    func testWindowInvalidPasswordsSkew() {
+        for (_, seconds, secret, algorithm, otp) in TOTPTestResources.referenceData where seconds >= 90 {
+            guard let secret = secret.data(using: .utf8) else { return XCTFail("nil secret") }
+            let hotp = HOTP(secret: secret, configuration: .init(algorithm: algorithm, digits: 8, window: 2))
+            let totp = TOTP(hotp: hotp, configuration: .init(period: 30))
+            
+            XCTAssertNil(totp.skew(date: Date(timeIntervalSince1970: TimeInterval(seconds - 90)), password: otp))
+            XCTAssertNil(totp.skew(date: Date(timeIntervalSince1970: TimeInterval(seconds + 90)), password: otp))
+        }
+    }
+    
+    // Test the skew of RFC6238 reference passwords for dates inside a window of 2 of the correct date.
+    func testWindowValidPasswordsSkew() {
+        for (_, seconds, secret, algorithm, otp) in TOTPTestResources.referenceData where seconds >= 90 {
+            guard let secret = secret.data(using: .utf8) else { return XCTFail("nil secret") }
+            let hotp = HOTP(secret: secret, configuration: .init(algorithm: algorithm, digits: 8, window: 2))
+            let totp = TOTP(hotp: hotp, configuration: .init(period: 30))
+            
+            XCTAssertEqual(totp.skew(date: Date(timeIntervalSince1970: TimeInterval(seconds - 60)), password: otp), 2)
+            XCTAssertEqual(totp.skew(date: Date(timeIntervalSince1970: TimeInterval(seconds + 60)), password: otp), -2)
+        }
+    }
+
+    // MARK: Testing validation of RFC6238 reference passwords using different periods
     
     // Test validating RFC6238 reference passwords for different date / period combinations yielding a different counter.
-    func testInvalidDatePeriodPasswords() {
+    func testDatePeriodInvalidPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
         let hotp = HOTP(secret: secret, configuration: .init(digits: 8))
         
@@ -141,7 +191,7 @@ class TOTPTests: XCTestCase {
     }
     
     // Test validating RFC6238 reference passwords for different date / period combinations yielding the same counter.
-    func testValidDatePeriodPasswords() {
+    func testDatePeriodValidPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
         let hotp = HOTP(secret: secret, configuration: .init(digits: 8))
         
@@ -152,27 +202,30 @@ class TOTPTests: XCTestCase {
         }
     }
     
-}
-
-
-/**
- TOTP test suite.
- */
-extension TOTPTests {
+    // MARK: Testing skew of RFC6238 reference passwords using different periods
     
-    static var allTests = [
-        ("testDefaults", testDefaults),
-        ("testNonDefaults", testNonDefaults),
-        ("testInvalidPeriod", testInvalidPeriod),
-        ("testValidPeriod", testValidPeriod),
-        ("testDefaultServiceConfiguration", testDefaultServiceConfiguration),
-        ("testGenerateRFC6238Passwords", testGenerateRFC6238Passwords),
-        ("testInvalidPasswords", testInvalidPasswords),
-        ("testValidPasswords", testValidPasswords),
-        ("testInvalidWindowPasswords", testInvalidWindowPasswords),
-        ("testValidWindowPasswords", testValidWindowPasswords),
-        ("testInvalidDatePeriodPasswords", testInvalidDatePeriodPasswords),
-        ("testValidDatePeriodPasswords", testValidDatePeriodPasswords),
-    ]
+    // Test the skew of RFC6238 reference passwords for different date / period combinations yielding a different counter.
+    func testDatePeriodInvalidPasswordsSkew() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        let hotp = HOTP(secret: secret, configuration: .init(digits: 8))
+        
+        for (seconds, period) in [(59, 29), (59, 60)] {
+            let totp = TOTP(hotp: hotp, configuration: .init(period: TimeInterval(period)))
+            
+            XCTAssertNil(totp.skew(date: Date(timeIntervalSince1970: TimeInterval(seconds)), password: "94287082"))
+        }
+    }
+    
+    // Test the skew of RFC6238 reference passwords for different date / period combinations yielding the same counter.
+    func testDatePeriodValidPasswordsSkew() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        let hotp = HOTP(secret: secret, configuration: .init(digits: 8))
+        
+        for (seconds, period) in [(59, 30), (59, 59)] {
+            let totp = TOTP(hotp: hotp, configuration: .init(period: TimeInterval(period)))
+            
+            XCTAssertEqual(totp.skew(date: Date(timeIntervalSince1970: TimeInterval(seconds)), password: "94287082"), 0)
+        }
+    }
     
 }

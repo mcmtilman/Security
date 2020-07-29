@@ -37,7 +37,7 @@ class HOTPTests: XCTestCase {
         XCTAssertEqual(configuration.algorithm, .sha1)
         XCTAssertEqual(configuration.digits, 6)
         XCTAssertNil(configuration.offset)
-        XCTAssertNil(configuration.window)
+        XCTAssertEqual(configuration.window, 0)
     }
     
     // Test creating a HOTP configuration with non-default values.
@@ -52,8 +52,8 @@ class HOTPTests: XCTestCase {
     
     // Test creating HOTP configurations with invalid digits.
     func testInvalidDigits() {
-        for (given, expected) in [(0, 1), (10, 9)] {
-            let configuration = Configuration(digits: given)
+        for (digits, expected) in [(0, 1), (10, 9)] {
+            let configuration = Configuration(digits: digits)
             
             XCTAssertEqual(configuration.digits, expected)
         }
@@ -61,8 +61,8 @@ class HOTPTests: XCTestCase {
     
     // Test creating HOTP configurations with minimum and maximum valid digits.
     func testValidDigits() {
-        for (given, expected) in [(1, 1), (9, 9)] {
-            let configuration = Configuration(digits: given)
+        for (digits, expected) in [(1, 1), (9, 9)] {
+            let configuration = Configuration(digits: digits)
             
             XCTAssertEqual(configuration.digits, expected)
         }
@@ -70,15 +70,15 @@ class HOTPTests: XCTestCase {
     
     // Test creating HOTP configurations with invalid offset.
     func testInvalidOffset() {
-        let offsets = [
+        let data = [
             (Algorithm.sha1, -1, 0), (.sha1, 16, 15),
             (.sha256, -1, 0), (.sha256, 28, 27),
             (.sha384, -1, 0), (.sha384, 44, 43),
             (.sha512, -1, 0), (.sha512, 60, 59)
         ]
         
-        for (algorithm, given, expected) in offsets {
-            let configuration = Configuration(algorithm: algorithm, offset: given)
+        for (algorithm, offset, expected) in data {
+            let configuration = Configuration(algorithm: algorithm, offset: offset)
             
             XCTAssertEqual(configuration.offset, expected)
         }
@@ -86,15 +86,15 @@ class HOTPTests: XCTestCase {
     
     // Test creating HOTP configurations with minimum and maximum valid offset.
     func testValidOffset() {
-        let offsets = [
+        let data = [
             (Algorithm.sha1, 0, 0), (.sha1, 16, 15),
             (.sha256, 0, 0), (.sha256, 27, 27),
             (.sha384, 0, 0), (.sha384, 43, 43),
             (.sha512, 0, 0), (.sha512, 59, 59)
         ]
         
-        for (algorithm, given, expected) in offsets {
-            let configuration = Configuration(algorithm: algorithm, offset: given)
+        for (algorithm, offset, expected) in data {
+            let configuration = Configuration(algorithm: algorithm, offset: offset)
             
             XCTAssertEqual(configuration.offset, expected)
         }
@@ -102,8 +102,8 @@ class HOTPTests: XCTestCase {
     
     // Test creating HOTP configurations with invalid window.
     func testInvalidWindow() {
-        for (given, expected) in [(0, 1), (6, 5)] {
-            let configuration = Configuration(window: given)
+        for (window, expected) in [(-1, 0), (6, 5)] {
+            let configuration = Configuration(window: window)
             
             XCTAssertEqual(configuration.window, expected)
         }
@@ -111,8 +111,8 @@ class HOTPTests: XCTestCase {
     
     // Test creating HOTP configurations with minimum and maximum valid window.
     func testValidWindow() {
-        for (given, expected) in [(1, 1), (5, 5)] {
-            let configuration = Configuration(window: given)
+        for (window, expected) in [(1, 1), (5, 5)] {
+            let configuration = Configuration(window: window)
             
             XCTAssertEqual(configuration.window, expected)
         }
@@ -128,7 +128,7 @@ class HOTPTests: XCTestCase {
         XCTAssertEqual(hotp.configuration.algorithm, .sha1)
         XCTAssertEqual(hotp.configuration.digits, 6)
         XCTAssertNil(hotp.configuration.offset)
-        XCTAssertNil(hotp.configuration.window)
+        XCTAssertEqual(hotp.configuration.window, 0)
     }
 
     // MARK: Testing generating RFC4226 reference passwords
@@ -137,11 +137,10 @@ class HOTPTests: XCTestCase {
     func testGenerateRFC4226Passwords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
         let hotp = HOTP(secret: secret)
-        
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489", ""]
 
-        for i in 0 ... 9 {
-            XCTAssertEqual(hotp.generatePassword(for: Int64(i)), expected[i])
+        for counter in 0 ... 9 {
+            XCTAssertEqual(hotp.generatePassword(for: Int64(counter)), expected[counter])
         }
     }
     
@@ -160,16 +159,20 @@ class HOTPTests: XCTestCase {
     
     // Test generating passwords for different counter / secret / hash algorithm / digits combinations.
     // Compare results with test data produced by the RFC4226 Java reference implementation.
-    // First test using explicit truncation offsets matching the recorded dynamic offsets in the test data.
-    // Then test using shifted explicit offsets, with enough digits to generate different results.
-    //
-    func testTruncationOffsets() {
+    // Test using explicit truncation offsets matching the recorded dynamic offsets in the test data.
+    func testTruncationRecordedOffsets() {
         for (counter, secret, algorithm, digits, otp, offset) in HOTPTestResources.referenceData {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
             let hotp = HOTP(secret: secret, configuration: .init(algorithm: algorithm, digits: digits, offset: offset))
 
             XCTAssertEqual(hotp.generatePassword(for: Int64(counter)), otp)
         }
+    }
+    
+    // Test generating passwords for different counter / secret / hash algorithm / digits combinations.
+    // Compare results with test data produced by the RFC4226 Java reference implementation.
+    // Test using explicit offsets matching the recorded dynamic offsets shifted right, with enough digits to generate different results.
+    func testTruncationShiftedOffsets() {
         for (counter, secret, algorithm, digits, otp, offset) in HOTPTestResources.referenceData where digits > 2 {
             guard let secret = secret.data(using: .utf8) else { return XCTFail("Invalid secret") }
             let configuration = Configuration(algorithm: algorithm, digits: digits, offset: (offset + 1) % (algorithm.byteCount - 4))
@@ -179,13 +182,12 @@ class HOTPTests: XCTestCase {
         }
     }
     
-    // MARK: Testing validating RFC4226 reference passwords
+    // MARK: Testing validation of RFC4226 reference passwords using a zero window
     
-    // Test validating wrong passwords for the RFC2446 reference counter / passwords.
+    // Test validating wrong passwords for the RFC2446 reference counters.
     func testInvalidPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
         let hotp = HOTP(secret: secret)
-
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
         for i in 0 ... 9 {
@@ -195,11 +197,10 @@ class HOTPTests: XCTestCase {
         }
     }
     
-    // Test validating the RFC2446 reference passwords.
+    // Test validating the correct RFC2446 reference passwords.
     func testValidPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
         let hotp = HOTP(secret: secret)
-
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
         for i in 0 ... 9 {
@@ -207,13 +208,38 @@ class HOTPTests: XCTestCase {
         }
     }
     
-    // MARK: Testing validating RFC4226 reference passwords using a window
+    // MARK: Testing skew of RFC4226 reference passwords using a zero window
     
-    // Test validating the RFC2446 reference passwords for counters outside a window of 2 of the actual counter.
-    func testInvalidWindowPasswords() {
+    // Test the skew of wrong passwords for the RFC2446 reference counters.
+    func testInvalidPasswordsSkew() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        let hotp = HOTP(secret: secret)
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
+
+        for i in 0 ... 9 {
+            for j in 0 ... 9 where j != i {
+                XCTAssertNil(hotp.skew(counter: Int64(j), password: expected[i]))
+            }
+        }
+    }
+    
+    // Test the skew of the correct RFC2446 reference passwords.
+    func testValidPasswordsSkew() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        let hotp = HOTP(secret: secret)
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
+
+        for i in 0 ... 9 {
+            XCTAssertEqual(hotp.skew(counter: Int64(i), password: expected[i]), 0)
+        }
+    }
+    
+    // MARK: Testing validation of RFC4226 reference passwords using a non-zero window
+    
+    // Test validating the RFC2446 reference passwords for counters outside a window of 2 of the correct counter.
+    func testWindowInvalidPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
         let hotp = HOTP(secret: secret, configuration: .init(window: 2))
-
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
         for i in 0 ... 9 {
@@ -222,11 +248,10 @@ class HOTPTests: XCTestCase {
         }
     }
     
-    // Test validating the RFC2446 reference passwords for counters inside a window of 2 of the actual counter.
-    func testValidWindowPasswords() {
+    // Test validating the RFC2446 reference passwords for counters inside a window of 2 of the correct counter.
+    func testWindowValidPasswords() {
         guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
         let hotp = HOTP(secret: secret, configuration: .init(window: 2))
-
         let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
         for i in 0 ... 9 {
@@ -235,33 +260,32 @@ class HOTPTests: XCTestCase {
             }
         }
     }
-    
-}
+        
+    // MARK: Testing skew of RFC4226 reference passwords using a non-zero window
 
+        // Test the skew of the RFC2446 reference passwords for counters outside a window of 2 of the correct counter.
+    func testWindowInvalidPasswordsSkew() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        let hotp = HOTP(secret: secret, configuration: .init(window: 2))
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
 
-/**
- HOTP test suite.
- */
-extension HOTPTests {
+        for i in 0 ... 9 {
+            XCTAssertNil(hotp.skew(counter: Int64(i - 3), password: expected[i]))
+            XCTAssertNil(hotp.skew(counter: Int64(i + 3), password: expected[i]))
+        }
+    }
     
-    static var allTests = [
-        ("testByteCounts", testByteCounts),
-        ("testDefaults", testDefaults),
-        ("testNonDefaults", testNonDefaults),
-        ("testInvalidDigits", testInvalidDigits),
-        ("testValidDigits", testValidDigits),
-        ("testInvalidOffset", testInvalidOffset),
-        ("testValidOffset", testValidOffset),
-        ("testInvalidWindow", testInvalidWindow),
-        ("testValidWindow", testValidWindow),
-        ("testDefaultServiceConfiguration", testDefaultServiceConfiguration),
-        ("testGenerateRFC4226Passwords", testGenerateRFC4226Passwords),
-        ("testGenerateTestDataPasswords", testGenerateTestDataPasswords),
-        ("testTruncationOffsets", testTruncationOffsets),
-        ("testInvalidPasswords", testInvalidPasswords),
-        ("testValidPasswords", testValidPasswords),
-        ("testInvalidWindowPasswords", testInvalidWindowPasswords),
-        ("testValidWindowPasswords", testValidWindowPasswords),
-    ]
+    // Test the skew of the RFC2446 reference passwords for counters inside a window of 2 of the correct counter.
+    func testWindowValidPasswordsSkew() {
+        guard let secret = "12345678901234567890".data(using: .utf8) else { return XCTFail("nil secret") }
+        let hotp = HOTP(secret: secret, configuration: .init(window: 2))
+        let expected = ["755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"]
+
+        for i in 0 ... 9 {
+            for j in -2 ... 2 {
+                XCTAssertEqual(hotp.skew(counter: Int64(i + j), password: expected[i]), -j)
+            }
+        }
+    }
     
 }

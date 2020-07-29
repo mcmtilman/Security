@@ -66,10 +66,16 @@ public struct TOTP {
     
     // MARK: Validating
     
-    /// Answers if the password is valid by validating the derived counter.
-    /// If a window is specified, tries matching a counter in the range `counter - window ... counter + window`,
+    /// Verifies if the password is valid for given date.
+    /// The password must match any of the passwords corresponding to dates yielding counters in the range `counter - window ... counter + window`, where `counter` is the counter for given date.
     public func isValidPassword(_ password: String, for date: Date) -> Bool {
         hotp.isValidPassword(password, for: counter(from: date))
+    }
+    
+    /// Answers the *skew* of a valid password / date combination, or nil if the combination is not valid.
+    /// For a valid combination the skew is the offset of the counter derived from the date in the range `counter - window ... counter + window` matching the password. For a default window, the skew is 0.
+    public func skew(date: Date, password: String) -> Int? {
+        hotp.skew(counter: counter(from: date), password: password)
     }
     
     // MARK: Private converting
