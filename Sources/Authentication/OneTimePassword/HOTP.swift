@@ -19,8 +19,7 @@ public struct HOTP {
     public enum Algorithm {
         
         case sha1, sha256, sha384, sha512
-        
-        
+                
         // MARK: Computed properties
         
         /// Answers the number of bytes of the corresponding hash.
@@ -110,13 +109,13 @@ public struct HOTP {
     // MARK: Validating
     
     /// Answers if the password is valid for given counter.
-    /// The password must match any of the passwords for counters in the range `counter - window ... counter + window`.
+    /// The password must match the password for a counter in the range `counter - window ... counter + window`.
     public func isValidPassword(_ password: String, for counter: Int64) -> Bool {
         skew(counter: counter, password: password) != nil
     }
     
     /// Answers the *skew* of a valid password / counter combination, or nil if the combination is not valid.
-    /// For a valid combination the skew is the offset of the counter in the range `counter - window ... counter + window` matching the password. For a default window, the skew is 0.
+    /// A non-nil skew is the offset from given counter for a counter in the range `counter - window ... counter + window` with given password.
     public func skew(counter: Int64, password: String) -> Int? {
         for i in 0 ... configuration.window {
             if i > 0, generatePassword(for: counter - Int64(i)) == password { return -i }
