@@ -45,7 +45,7 @@ public struct TOTP {
     
     // MARK: Private stored properties
     
-    // The basic HTOP service
+    // The basic HOTP service.
     private let hotp: HOTP
 
     // MARK: Initializing
